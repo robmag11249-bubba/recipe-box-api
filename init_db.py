@@ -8,9 +8,11 @@ CREATE TABLE IF NOT EXISTS recipes (
     title TEXT NOT NULL UNIQUE,
     ingredients TEXT NOT NULL,
     instructions TEXT NOT NULL DEFAULT '',
-    is_public INTEGER NOT NULL DEFAULT 1
+    is_public INTEGER NOT NULL DEFAULT 1,
+    owner_id INTEGER NOT NULL
 );
-CREATE TABLE users (
+
+CREATE TABLE IF NOT EXISTS users (
   id INTEGER NOT NULL PRIMARY KEY,
   username TEXT NOT NULL UNIQUE,
   email TEXT NOT NULL UNIQUE,
@@ -52,4 +54,22 @@ if existing == 0:
     print(f"Created recipes.db and seeded {len(SEED)} recipes.")
 else:
     print(f"recipes.db already has {existing} recipes - nothing to do.")
+
+import sqlite3
+
+conn = sqlite3.connect("recipes.db")
+cur = conn.cursor()
+
+# existing setup work here...
+
+# Add owner_id column if it does not exist
+try:
+    cur.execute("ALTER TABLE recipes ADD COLUMN owner_id INTEGER NOT NULL DEFAULT 0;")
+    conn.commit()
+    print("Added owner_id column to recipes table.")
+except sqlite3.OperationalError as e:
+    # This usually means the column already exists
+    print("Skipping owner_id migration:", e)
+
+conn.close()   
 connection.close()

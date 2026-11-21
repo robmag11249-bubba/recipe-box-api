@@ -88,12 +88,12 @@ def register():
         )
         db.commit()
     except sqlite3.IntegrityError:
-        return jsonify({"error": "username or email already exists"}), 409
+        return jsonify({"error": "username or ema@il already exists"}), 409
 
     return jsonify({"message": "user registered"}), 201
 
 
-@app.post("/login")
+app.post("/login")
 def login():
     data = request.get_json(silent=True)
     if not data or not data.get("username") or not data.get("password"):
@@ -164,25 +164,40 @@ def create_recipe():
     ).fetchone()
     return jsonify(recipe_to_dict(row)), 201
 
-
 @app.patch("/recipes/<int:recipe_id>")
 @require_auth
 def update_recipe(recipe_id):
     data = request.get_json(silent=True)
     if not data:
         return jsonify({"error": "a JSON body is required"}), 400
+
     fields, values = [], []
     for column in ("title", "ingredients", "instructions"):
         if column in data:
             fields.append(f"{column} = ?")
             values.append(data[column])
+
     if "is_public" in data:
         fields.append("is_public = ?")
         values.append(1 if data["is_public"] else 0)
+
     if not fields:
         return jsonify({"error": "nothing to update"}), 400
+
+    user_id = g.current_user_id
+    db = get_db()  # <-- call the function
+
+    # ownership check, like delete_recipe
+    recipe = db.execute(
+        "SELECT * FROM recipes WHERE id = ?", (recipe_id,)
+    ).fetchone()
+    if recipe is None:
+        return jsonify({"error": "recipe not found"}), 404
+
+    if recipe["owner_id"] != user_id:
+        return jsonify({"error": "forbidden"}), 403
+
     values.append(recipe_id)
-    db = get_db()
     try:
         cur = db.execute(
             f"UPDATE recipes SET {', '.join(fields)} WHERE id = ?", values
@@ -190,8 +205,10 @@ def update_recipe(recipe_id):
         db.commit()
     except sqlite3.IntegrityError:
         return jsonify({"error": "a recipe with that title already exists"}), 409
+
     if cur.rowcount == 0:
         return jsonify({"error": "recipe not found"}), 404
+
     row = db.execute(
         "SELECT * FROM recipes WHERE id = ?", (recipe_id,)
     ).fetchone()
@@ -226,3 +243,4 @@ def delete_recipe(recipe_id):
 
 if __name__ == "__main__":
     app.run(debug=True)
+

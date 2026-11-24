@@ -19,6 +19,10 @@ DATABASE = "recipes.db"
 app = Flask(__name__)
 SECRET_KEY = "change-me-in-production"
 
+@app.get("/routes")
+def list_routes():
+    return jsonify(sorted(rule.rule for rule in app.url_map.iter_rules()))
+
 
 def get_db():
     if "db" not in g:
